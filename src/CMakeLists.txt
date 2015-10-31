@@ -50,28 +50,22 @@ set(ItkVtkGlue_DIR E:/itk/ItkVtkGlue/bin)
 set(VS_DIR "C:/Program Files (x86)/Microsoft Visual Studio 12.0")
 set(MS_SDK_DIR "C:/Program Files (x86)/Microsoft SDKs")
 
-# --------------------------------
-# Set up vtk
-find_package(VTK REQUIRED)
-include(${VTK_USE_FILE})
-set(VTK_BIN_DIR_DEBUG ${VTK_RUNTIME_LIBRARY_DIRS}/Debug)
-set(VTK_BIN_DIR_RELEASE ${VTK_RUNTIME_LIBRARY_DIRS}/Release)
-set(VTK_BIN_DIR_RELWITHDEBINFO ${VTK_RUNTIME_LIBRARY_DIRS}/RelWithDebInfo)
 
 # --------------------------------
-# Set up ITK
+# Set up Itk+Vtk
 find_package(ITK REQUIRED)
 include(${ITK_USE_FILE})
-set(ITK_BIN_DIR_DEBUG ${ITK_RUNTIME_LIBRARY_DIRS}/Debug)
-set(ITK_BIN_DIR_RELEASE ${ITK_RUNTIME_LIBRARY_DIRS}/Release)
-
-# --------------------------------
-# Set up ItkVtkGlue
-find_package(ItkVtkGlue REQUIRED)
-include(${ItkVtkGlue_USE_FILE})
-set(Glue ItkVtkGlue)
-set(ItkVtkGlue_BIN_DIR_DEBUG ${ItkVtkGlue_RUNTIME_LIBRARY_DIRS}/Debug)
-set(ItkVtkGlue_BIN_DIR_RELEASE ${ItkVtkGlue_RUNTIME_LIBRARY_DIRS}/Release)
+if (ITKVtkGlue_LOADED)
+  find_package(VTK REQUIRED)
+  include(${VTK_USE_FILE})
+  set(VTK_BIN_DIR_DEBUG ${VTK_RUNTIME_LIBRARY_DIRS}/Debug)
+  set(VTK_BIN_DIR_RELEASE ${VTK_RUNTIME_LIBRARY_DIRS}/Release)
+  set(VTK_BIN_DIR_RELWITHDEBINFO ${VTK_RUNTIME_LIBRARY_DIRS}/RelWithDebInfo)
+else()
+  find_package(ItkVtkGlue REQUIRED)
+  include(${ItkVtkGlue_USE_FILE})
+  set(Glue ItkVtkGlue)
+endif()
 
 
 # --------------------------------
@@ -101,6 +95,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${CR
 if(WIN32 AND MSVC) # Check if we are using the Visual Studio compiler
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 endif()
+
 
 # --------------------------------
 # The sub files for main project, test project, and installer project

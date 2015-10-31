@@ -40,7 +40,7 @@ qt5_add_resources(RCCSrcs ${QT_RES})
 
 add_executable(${PROJ_NAME} ${H_FILES} ${CXX_FILES} ${UISrcs} ${MOCSrcs} ${RCCSrcs})
 qt5_use_modules(${PROJ_NAME} Core Gui Widgets)
-target_link_libraries(${PROJ_NAME} ${VTK_LIBRARIES} optimized ${Qt5Core_QTMAIN_LIBRARIES} )
+target_link_libraries(${PROJ_NAME} ${Glue} ${VTK_LIBRARIES} ${ITK_LIBRARIES} optimized ${Qt5Core_QTMAIN_LIBRARIES} )
 
 # --------------------------------
 # SET UP FOR VISUAL STUDIO

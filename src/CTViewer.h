@@ -9,8 +9,7 @@
 #include <vtkRenderer.h>
 #include <vtkSmartPointer.h>
 
-
-
+#include "itkImageFileReader.h"
 #include <QMainWindow>
 
 class Ui_CTViewer;
