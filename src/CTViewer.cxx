@@ -18,12 +18,15 @@
 #include "vtkImageData.h"
 #include "vtkInteractorStyleImage.h"
 #include "vtkRenderWindowInteractor.h"
-#include "vtkImageMapper3D.h"
-#include "vtkImageSlice.h"
+#include "vtkImageActor.h"
 #include "vtkImageProperty.h"
 #include "vtkActor.h"
 #include <vtkImagePlaneWidget.h>
 #include "vtkRenderWindow.h"
+#include "vtkOutlineFilter.h"
+#include "vtkCellPicker.h"
+#include "vtkTextProperty.h"
+#include "vtkCubeAxesActor2D.h"
 
 //ITK includes
 #include "itkImage.h"
@@ -38,7 +41,7 @@
 
 
 CTViewer::CTViewer()
-	:_actor(vtkSmartPointer<vtkImageActor>::New()),
+	:_actor(vtkSmartPointer<vtkActor>::New()),
 	 _renderer(vtkSmartPointer<vtkRenderer>::New())
 {
 	this->ui = new Ui_CTViewer;
@@ -55,75 +58,7 @@ CTViewer::CTViewer()
 	connect(this->ui->actionExit, SIGNAL(triggered()), this, SLOT(slotExit()));
 }
 
-void CTViewer::SetupCamera()
-{
 
-	vtkImageData * image = _actor->GetInput();
-
-	if (!image)
-	{
-		return;
-	}
-
-	vtkFloatingPointType spacing[3];
-	vtkFloatingPointType origin[3];
-	int   dimensions[3];
-
-	image->GetSpacing(spacing);
-	image->GetOrigin(origin);
-	image->GetDimensions(dimensions);
-
-	double focalPoint[3];
-	double position[3];
-
-	for (unsigned int cc = 0; cc < 3; cc++)
-	{
-		focalPoint[cc] = origin[cc] + (spacing[cc] * dimensions[cc]) / 2.0;
-		position[cc] = focalPoint[cc];
-	}
-
-	int idx = 0;
-	switch (_orientation)
-	{
-	case Saggital:
-	{
-		idx = 0;
-		_camera->SetViewUp(0, 0, -1);
-		break;
-	}
-	case Coronal:
-	{
-		idx = 1;
-		_camera->SetViewUp(0, 0, -1);
-		break;
-	}
-	case Axial:
-	{
-		idx = 2;
-		_camera->SetViewUp(0, -1, 0);
-		break;
-	}
-	}
-
-	const double distanceToFocalPoint = 1000;
-	position[idx] += distanceToFocalPoint;
-
-	_camera->SetPosition(position);
-	_camera->SetFocalPoint(focalPoint);
-
-#define myMAX(x,y) (((x)>(y))?(x):(y))  
-
-	int d1 = (idx + 1) % 3;
-	int d2 = (idx + 2) % 3;
-
-	double max = myMAX(
-		spacing[d1] * dimensions[d1],
-		spacing[d2] * dimensions[d2]);
-
-
-	_camera->SetParallelScale(max / 2 * _zoomFactor);
-
-}
 
 
 void CTViewer::loadDicom(QString const &filePath)
@@ -166,49 +101,110 @@ void CTViewer::loadDicom(QString const &filePath)
 	connector->SetInput(reader->GetOutput());
 
 	connector->Update();
-	_actor->GetMapper()->SetInputData(connector->GetOutput());
-	_actor->GetProperty()->SetInterpolationTypeToCubic();
+	
+	vtkOutlineFilter* outline = vtkOutlineFilter::New();
+	outline->SetInputData(connector->GetOutput());
 
-	_renderer->AddActor(_actor);
-	_renderer->ResetCamera();
+	vtkPolyDataMapper* outlineMapper = vtkPolyDataMapper::New();
+	outlineMapper->SetInputConnection(outline->GetOutputPort());
 
 
+	_actor->SetMapper(outlineMapper);
+	_actor->GetProperty()->SetOpacity(0);
+
+	
 	vtkSmartPointer<vtkRenderWindow> renderWindow = this->ui->qvtkWidget->GetRenderWindow();
-		//vtkSmartPointer<vtkRenderWindow>::New();
-	vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor =
-		vtkSmartPointer<vtkRenderWindowInteractor>::New();
-	vtkSmartPointer<vtkInteractorStyleTrackballCamera> style =
-		vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New();
-	vtkSmartPointer<vtkImagePlaneWidget> planeWidget =
-		vtkSmartPointer<vtkImagePlaneWidget>::New();
-
-
 	renderWindow->AddRenderer(_renderer);
 
-	renderWindowInteractor->SetInteractorStyle(style);
 
-	planeWidget->SetInteractor(renderWindowInteractor);
+	vtkRenderWindowInteractor* iren = vtkRenderWindowInteractor::New();
+	iren->SetRenderWindow(renderWindow);
 
-	double origin[3] = { 1, 0, 0 };
-	planeWidget->SetOrigin(origin);
-	planeWidget->UpdatePlacement();
+	vtkCellPicker* picker = vtkCellPicker::New();
+	picker->SetTolerance(0.005);
 
+	vtkProperty* ipwProp = vtkProperty::New();
+	//assign default props to the ipw's texture plane actor 
+
+
+	vtkImagePlaneWidget* planeWidgetZ = vtkImagePlaneWidget::New();
+	planeWidgetZ->SetInteractor(iren);
+	planeWidgetZ->SetPicker(picker);
+	planeWidgetZ->GetPlaneProperty()->SetColor(0, 1, 0);
+	planeWidgetZ->SetTexturePlaneProperty(ipwProp);
+	planeWidgetZ->TextureInterpolateOn();
+	planeWidgetZ->SetResliceInterpolateToCubic();
+	planeWidgetZ->SetInputData(connector->GetOutput());
+	planeWidgetZ->SetPlaneOrientationToZAxes();
+	planeWidgetZ->SetSliceIndex(9);
+	//    planeWidgetZ->SetLookupTable( planeWidgetX->GetLookupTable()); 
+	planeWidgetZ->DisplayTextOn();
+	planeWidgetZ->On();
+
+
+	vtkImagePlaneWidget* planeWidgetZ1 = vtkImagePlaneWidget::New();
+	planeWidgetZ1->SetInteractor(iren);
+	planeWidgetZ1->SetPicker(picker);
+	planeWidgetZ1->GetPlaneProperty()->SetColor(0, 1, 0);
+	planeWidgetZ1->SetTexturePlaneProperty(ipwProp);
+	planeWidgetZ1->TextureInterpolateOn();
+	planeWidgetZ1->SetResliceInterpolateToLinear();
+	planeWidgetZ1->SetInputData(connector->GetOutput());
+	planeWidgetZ1->SetPlaneOrientationToYAxes();
+	planeWidgetZ1->SetSliceIndex(106);
+	planeWidgetZ1->DisplayTextOn();
+	planeWidgetZ1->On();
+
+	vtkImagePlaneWidget* planeWidgetZ2 = vtkImagePlaneWidget::New();
+	planeWidgetZ2->SetInteractor(iren);
+	planeWidgetZ2->SetPicker(picker);
+	planeWidgetZ2->GetPlaneProperty()->SetColor(0, 1, 0);
+	planeWidgetZ2->SetTexturePlaneProperty(ipwProp);
+	planeWidgetZ2->TextureInterpolateOn();
+	planeWidgetZ2->SetResliceInterpolateToLinear();
+	planeWidgetZ2->SetInputData(connector->GetOutput());
+	planeWidgetZ2->SetPlaneOrientationToXAxes();
+	planeWidgetZ2->SetSliceIndex(106);
+	planeWidgetZ2->DisplayTextOn();
+	planeWidgetZ2->On();
+
+	_renderer->AddActor(_actor);
+
+	_renderer->SetBackground(0.6, 0.6, 0.6);
+
+
+	_renderer->GetActiveCamera()->Elevation(110);
+	_renderer->GetActiveCamera()->SetViewUp(0, 0, -1);
+
+	vtkTextProperty *tprop = vtkTextProperty::New();
+	tprop->SetColor(0, 0, 1);
+	tprop->ShadowOn();
+
+	vtkCubeAxesActor2D *axes = vtkCubeAxesActor2D::New();
+	axes->SetInputData(outline->GetOutput());
+	axes->SetCamera(_renderer->GetActiveCamera());
+	//    axes-> SetLabelFormat "%6.4g" 
+	//    axes-> SetFlyModeToOuterEdges(); 
+	axes->SetFontFactor(0.8);
+	axes->SetAxisTitleTextProperty(tprop);
+	axes->SetAxisLabelTextProperty(tprop);
+	//	axes->GetProperty()->SetDiffuseColor(1, 0, 0.25); 
+	axes->SetFontFactor(6);
+
+	_renderer->AddActor(axes);
+
+	//  ren1->SetViewport(0,0,0.58333,1); 
+	_renderer->GetActiveCamera()->Azimuth(45);
+	_renderer->GetActiveCamera()->Dolly(1.0);
+	_renderer->ResetCameraClippingRange();
+	_renderer->ResetCamera();
+	// Set the actors' postions 
+	// 
 	renderWindow->Render();
 
-	renderWindowInteractor->SetRenderWindow(renderWindow);
-	renderWindowInteractor->Initialize();
-
-	renderWindowInteractor->Start();
-	
-
-	// VTK Renderer
-	
-	// VTK/Qt wedded
-	//this->ui->qvtkWidget->GetRenderWindow()->RemoveRenderer(_renderer);
-	//this->ui->qvtkWidget->GetRenderWindow()->AddRenderer(_renderer);
-
-	//SetupCamera();
-	//update3d();
+	iren->Initialize();
+	iren->Start();
+	renderWindow->Render();
 }
 
 void CTViewer::slotOpenDicom()
@@ -238,12 +234,6 @@ void CTViewer::update3d()
 	_renderer->AddActor(_actor);
 	_renderer->ResetCamera();
 	ui->qvtkWidget->update();
-}
-
-void CTViewer::SetOrientation(OrientationType orientation)
-{
-	_orientation = orientation;
-	this->SetupCamera();
 }
 
 void CTViewer::slotExit()

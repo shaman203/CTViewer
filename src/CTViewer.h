@@ -2,13 +2,13 @@
 #define CTViewer_H
 
 
-#include <vtkImageActor.h>
+#include <vtkActor.h>
 #include <vtkLinearSubdivisionFilter.h>
 #include <vtkPolyDataMapper.h>
 #include <vtkPolyDataNormals.h>
 #include <vtkRenderer.h>
 #include <vtkSmartPointer.h>
-#include "vtkSphereSource.h" 
+
 
 #include <QMainWindow>
 
@@ -36,8 +36,6 @@ public:
 	CTViewer();
 
 	~CTViewer(){};
-
-	void SetOrientation(OrientationType orientation);
  
 private slots:
 
@@ -54,7 +52,7 @@ private:
 
   QString _lastOpenedPath;
 
-  vtkSmartPointer<vtkImageActor> _actor;
+  vtkSmartPointer<vtkActor> _actor;
   vtkSmartPointer<vtkRenderer> _renderer;
   vtkSmartPointer<vtkCamera>   _camera;
 
@@ -63,8 +61,6 @@ private:
   double              _zoomFactor;
 
   void loadDicom(QString const &dirPath);
-
-  void SetupCamera();
 };
  
 
