@@ -15,7 +15,10 @@ typedef double vtkFloatingPointType;
 #include "vtkRenderWindowInteractor.h"
 #include "vtkCellPicker.h"
 #include "vtkProperty.h"
+#include "vtkImagePlaneWidget.h"
 
+
+#include "SliceInteractorStyle.h"
 
 class Ui_CTViewer;
 
@@ -59,9 +62,12 @@ private:
   vtkSmartPointer<vtkRenderWindowInteractor> iren;
   vtkSmartPointer<vtkCellPicker> picker;
   vtkSmartPointer<vtkProperty> ipwProp;
+  vtkSmartPointer<SliceInteractorStyle> style;
+
+  std::vector<vtkSmartPointer<vtkImagePlaneWidget>> planes;
 
   void loadDicom(QString const &dirPath);
-  void addPlane(double p1X, double p1Y, double p1Z, double p2X, double p2Y, double p2Z, int slice = -1);
+  vtkSmartPointer<vtkImagePlaneWidget> addPlane(double p1X, double p1Y, double p1Z, double p2X, double p2Y, double p2Z, int slice = -1);
 };
  
 

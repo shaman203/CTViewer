@@ -10,6 +10,7 @@
 # 
 set(GLOBAL_SRCS_H
 	${CMAKE_CURRENT_SOURCE_DIR}/CTViewer.h
+	${CMAKE_CURRENT_SOURCE_DIR}/SliceInteractorStyle.h
 )
 
 set(GLOBAL_SRCS_UI
@@ -18,6 +19,7 @@ set(GLOBAL_SRCS_UI
 
 set(GLOBAL_SRCS_CXX 
 	${CMAKE_CURRENT_SOURCE_DIR}/CTViewer.cxx
+	${CMAKE_CURRENT_SOURCE_DIR}/SliceInteractorStyle.cxx
 	${CMAKE_CURRENT_SOURCE_DIR}/main.cxx
 )
 

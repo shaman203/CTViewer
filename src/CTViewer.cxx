@@ -11,18 +11,20 @@
 #include <QColorDialog>
 #include <QFileDialog>
 #include <QStandardPaths>
+#include <qevent.h>
 
 //VTK includes
 #include "vtkOutlineFilter.h"
 #include "vtkPolyDataMapper.h"
 #include "vtkRenderWindow.h"
-#include "vtkImagePlaneWidget.h"
 #include "vtkImageData.h"
 #include "vtkCamera.h"
 #include "vtkTextProperty.h"
 #include "vtkCubeAxesActor2D.h"
 #include "vtkInteractorEventRecorder.h" 
-#include "vtkInteractorStyleTrackballCamera.h"
+
+
+vtkStandardNewMacro(SliceInteractorStyle);
 
 CTViewer::CTViewer():
 reader(vtkDICOMImageReader::New()),
@@ -30,7 +32,8 @@ actor(vtkActor::New()),
 renderer(vtkRenderer::New()),
 iren(vtkRenderWindowInteractor::New()),
 picker(vtkCellPicker::New()),
-ipwProp(vtkProperty::New())
+ipwProp(vtkProperty::New()),
+style(SliceInteractorStyle::New())
 {
 	this->ui = new Ui_CTViewer;
 	this->ui->setupUi(this);
@@ -63,9 +66,13 @@ void CTViewer::loadDicom(QString const &filePath)
 	vtkSmartPointer<vtkRenderWindow> renderWindow = this->ui->qvtkWidget->GetRenderWindow();
 	renderWindow->AddRenderer(renderer);
 
+	style->setRenderer(renderWindow);
+
 	iren->SetRenderWindow(renderWindow);
 
-	addPlane(100,0,0,0,100,0); //X plane
+	vtkSmartPointer<vtkImagePlaneWidget> widget = addPlane(0, 219.57, -3.48589,0,-0.429688,135.95, 100); //X plane
+	style->setActivePlaneWidged(widget,0,20);
+	planes.push_back(widget);
 	//addPlane();
 	//addPlane();
 
@@ -103,8 +110,6 @@ void CTViewer::loadDicom(QString const &filePath)
 	// 
 	renderWindow->Render();
 
-	vtkSmartPointer<vtkInteractorStyleTrackballCamera> style =
-		vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New();
 
 	iren->SetInteractorStyle(style);
 
@@ -113,7 +118,7 @@ void CTViewer::loadDicom(QString const &filePath)
 	renderWindow->Render();
 }
 
-void CTViewer::addPlane(double p1X, double p1Y, double p1Z, double p2X, double p2Y, double p2Z, int slice)
+vtkSmartPointer<vtkImagePlaneWidget> CTViewer::addPlane(double p1X, double p1Y, double p1Z, double p2X, double p2Y, double p2Z, int slice)
 {
 	vtkSmartPointer<vtkImagePlaneWidget> planeWidget = vtkImagePlaneWidget::New();
 	planeWidget->SetInteractor(iren);
@@ -124,16 +129,15 @@ void CTViewer::addPlane(double p1X, double p1Y, double p1Z, double p2X, double p
 	planeWidget->SetResliceInterpolateToLinear();
 	planeWidget->SetInputData(reader->GetOutput());
 	std::cout << reader->GetOutput()->GetDimensions()[0] << " " << reader->GetOutput()->GetDimensions()[1] << " " << reader->GetOutput()->GetDimensions()[2] << std::endl;
-	planeWidget->SetPlaneOrientationToZAxes();
-	//planeWidget->SetPoint1(p1X, p1Y, p1Z);
-	//planeWidget->SetPoint2(p2X, p2Y, p2Z);
+	//planeWidget->SetPlaneOrientationToZAxes();
+	planeWidget->SetPoint1(p1X, p1Y, p1Z);
+	planeWidget->SetPoint2(p2X, p2Y, p2Z);
 	//std::cout << planeWidget->GetPoint1()[0] << " " << planeWidget->GetPoint1()[1] << " " << planeWidget->GetPoint1()[2] << std::endl;
 	//std::cout << planeWidget->GetPoint2()[0] << " " << planeWidget->GetPoint2()[1] << " " << planeWidget->GetPoint2()[2] << std::endl;
 
 	if (slice < 0)
 	{
 		planeWidget->SetSliceIndex(100);
-		std::cout << *planeWidget->GetResliceOutput()->GetExtent() << std::endl;
 	}
 	else
 	{
@@ -141,6 +145,7 @@ void CTViewer::addPlane(double p1X, double p1Y, double p1Z, double p2X, double p
 	}	
 	planeWidget->DisplayTextOn();
 	planeWidget->On();
+	return planeWidget;
 }
 
 void CTViewer::slotOpenDicom()
