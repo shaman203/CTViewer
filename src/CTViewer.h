@@ -1,21 +1,21 @@
 #ifndef CTViewer_H
 #define CTViewer_H
 
-
-#include <vtkActor.h>
-#include <vtkLinearSubdivisionFilter.h>
-#include <vtkPolyDataMapper.h>
-#include <vtkPolyDataNormals.h>
-#include <vtkRenderer.h>
-#include <vtkSmartPointer.h>
-
-
 #include <QMainWindow>
 
 #ifndef vtkFloatingPointType
 # define vtkFloatingPointType vtkFloatingPointType
 typedef double vtkFloatingPointType;
 #endif
+
+#include "vtkSmartPointer.h"
+#include "vtkDICOMImageReader.h"
+#include "vtkActor.h"
+#include "vtkRenderer.h"
+#include "vtkRenderWindowInteractor.h"
+#include "vtkCellPicker.h"
+#include "vtkProperty.h"
+
 
 class Ui_CTViewer;
 
@@ -43,24 +43,25 @@ private slots:
 
   void slotExit();
 
-  void update3d();
-
 private:
  
   // Designer form
   Ui_CTViewer *ui;
 
   QString _lastOpenedPath;
-
-  vtkSmartPointer<vtkActor> _actor;
-  vtkSmartPointer<vtkRenderer> _renderer;
-  vtkSmartPointer<vtkCamera>   _camera;
-
   
   OrientationType     _orientation;
   double              _zoomFactor;
 
+  vtkSmartPointer<vtkDICOMImageReader> reader;
+  vtkSmartPointer<vtkActor> actor;
+  vtkSmartPointer<vtkRenderer> renderer;
+  vtkSmartPointer<vtkRenderWindowInteractor> iren;
+  vtkSmartPointer<vtkCellPicker> picker;
+  vtkSmartPointer<vtkProperty> ipwProp;
+
   void loadDicom(QString const &dirPath);
+  void addPlane(double p1X, double p1Y, double p1Z, double p2X, double p2Y, double p2Z, int slice = -1);
 };
  
 
