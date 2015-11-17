@@ -28,7 +28,6 @@ void SliceInteractorStyle::MoveSliceForward() {
 void SliceInteractorStyle::MoveSliceBackward() {
 	if (activePlaneWidget != NULL || activePlaneWidget->GetSliceIndex() > minSlice)
 	{
-		std::cout << activePlaneWidget->GetSliceIndex() << "-> ";
 		activePlaneWidget->SetSliceIndex(activePlaneWidget->GetSliceIndex() - 1);
 		std::cout << activePlaneWidget->GetSliceIndex() << std::endl;
 		activePlaneWidget->UpdatePlacement();

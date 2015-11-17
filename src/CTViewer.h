@@ -28,23 +28,27 @@ class CTViewer : public QMainWindow
 
 public:
 
-	typedef enum
-	{
-		Saggital,
-		Coronal,
-		Axial
-	}
-	OrientationType;
-
 	CTViewer();
 
 	~CTViewer(){};
- 
+
+protected:
+	enum Axe
+	{
+		SagitalIndex = 1,
+		CoronalIndex = 2,
+		AxialIndex = 3
+	};
+
 private slots:
 
   void slotOpenDicom();
 
   void slotExit();
+  
+  void slotShowHidePlane();
+
+  void slotActivatePlane();
 
 private:
  
@@ -53,8 +57,6 @@ private:
 
   QString _lastOpenedPath;
   
-  OrientationType     _orientation;
-  double              _zoomFactor;
 
   vtkSmartPointer<vtkDICOMImageReader> reader;
   vtkSmartPointer<vtkActor> actor;
@@ -64,10 +66,14 @@ private:
   vtkSmartPointer<vtkProperty> ipwProp;
   vtkSmartPointer<SliceInteractorStyle> style;
 
-  std::vector<vtkSmartPointer<vtkImagePlaneWidget>> planes;
+  
+
+  std::map<Axe, vtkSmartPointer<vtkImagePlaneWidget>> planes;
+  double minX, maxX, minY, maxY, minZ, maxZ;
 
   void loadDicom(QString const &dirPath);
-  vtkSmartPointer<vtkImagePlaneWidget> addPlane(double p1X, double p1Y, double p1Z, double p2X, double p2Y, double p2Z, int slice = -1);
+  vtkSmartPointer<vtkImagePlaneWidget> addPlane();
+  void addDefaultPlanesAndInit();
 };
  
 

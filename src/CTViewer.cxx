@@ -26,7 +26,7 @@
 
 vtkStandardNewMacro(SliceInteractorStyle);
 
-CTViewer::CTViewer():
+CTViewer::CTViewer() :
 reader(vtkDICOMImageReader::New()),
 actor(vtkActor::New()),
 renderer(vtkRenderer::New()),
@@ -37,11 +37,20 @@ style(SliceInteractorStyle::New())
 {
 	this->ui = new Ui_CTViewer;
 	this->ui->setupUi(this);
-	
+
 	picker->SetTolerance(0.005);
 
 	connect(this->ui->pbOpenDicom, SIGNAL(clicked()), this, SLOT(slotOpenDicom()));
 	connect(this->ui->actionExit, SIGNAL(triggered()), this, SLOT(slotExit()));
+
+	connect(this->ui->btnAxialActive, SIGNAL(toggled(bool)), this, SLOT(slotActivatePlane()));
+	connect(this->ui->btnCoronalActive, SIGNAL(toggled(bool)), this, SLOT(slotActivatePlane()));
+	connect(this->ui->btnSagittalActive, SIGNAL(toggled(bool)), this, SLOT(slotActivatePlane()));
+
+	connect(this->ui->showTransvers, SIGNAL(stateChanged(int)), this, SLOT(slotShowHidePlane()));
+	connect(this->ui->showCoronal, SIGNAL(stateChanged(int)), this, SLOT(slotShowHidePlane()));
+	connect(this->ui->showSagital, SIGNAL(stateChanged(int)), this, SLOT(slotShowHidePlane()));
+
 }
 
 
@@ -70,9 +79,9 @@ void CTViewer::loadDicom(QString const &filePath)
 
 	iren->SetRenderWindow(renderWindow);
 
-	vtkSmartPointer<vtkImagePlaneWidget> widget = addPlane(0, 219.57, -3.48589,0,-0.429688,135.95, 100); //X plane
-	style->setActivePlaneWidged(widget,0,20);
-	planes.push_back(widget);
+
+	addDefaultPlanesAndInit();
+
 	//addPlane();
 	//addPlane();
 
@@ -118,7 +127,7 @@ void CTViewer::loadDicom(QString const &filePath)
 	renderWindow->Render();
 }
 
-vtkSmartPointer<vtkImagePlaneWidget> CTViewer::addPlane(double p1X, double p1Y, double p1Z, double p2X, double p2Y, double p2Z, int slice)
+vtkSmartPointer<vtkImagePlaneWidget> CTViewer::addPlane()
 {
 	vtkSmartPointer<vtkImagePlaneWidget> planeWidget = vtkImagePlaneWidget::New();
 	planeWidget->SetInteractor(iren);
@@ -128,24 +137,58 @@ vtkSmartPointer<vtkImagePlaneWidget> CTViewer::addPlane(double p1X, double p1Y, 
 	planeWidget->TextureInterpolateOn();
 	planeWidget->SetResliceInterpolateToLinear();
 	planeWidget->SetInputData(reader->GetOutput());
-	std::cout << reader->GetOutput()->GetDimensions()[0] << " " << reader->GetOutput()->GetDimensions()[1] << " " << reader->GetOutput()->GetDimensions()[2] << std::endl;
 	//planeWidget->SetPlaneOrientationToZAxes();
-	planeWidget->SetPoint1(p1X, p1Y, p1Z);
-	planeWidget->SetPoint2(p2X, p2Y, p2Z);
+	//planeWidget->SetOrigin(oX, oY, oZ);
+	//planeWidget->SetPoint1(p1X, p1Y, p1Z);
+	//planeWidget->SetPoint2(p2X, p2Y, p2Z);
 	//std::cout << planeWidget->GetPoint1()[0] << " " << planeWidget->GetPoint1()[1] << " " << planeWidget->GetPoint1()[2] << std::endl;
 	//std::cout << planeWidget->GetPoint2()[0] << " " << planeWidget->GetPoint2()[1] << " " << planeWidget->GetPoint2()[2] << std::endl;
 
-	if (slice < 0)
-	{
-		planeWidget->SetSliceIndex(100);
-	}
-	else
-	{
-		planeWidget->SetSliceIndex(slice);
-	}	
 	planeWidget->DisplayTextOn();
 	planeWidget->On();
 	return planeWidget;
+}
+
+void CTViewer::addDefaultPlanesAndInit()
+{
+	int sliceCount[3];
+	reader->GetOutput()->GetDimensions(sliceCount);
+
+
+	vtkSmartPointer<vtkImagePlaneWidget> dummyPlaneWidget = vtkImagePlaneWidget::New();
+	dummyPlaneWidget->TextureInterpolateOn();
+	dummyPlaneWidget->SetResliceInterpolateToLinear();
+	dummyPlaneWidget->SetInputData(reader->GetOutput());
+
+	dummyPlaneWidget->SetPlaneOrientationToXAxes();
+
+	minZ = dummyPlaneWidget->GetPoint1()[2];
+	maxY = dummyPlaneWidget->GetPoint1()[1];
+	minY = dummyPlaneWidget->GetPoint2()[1];
+	maxZ = dummyPlaneWidget->GetPoint2()[2];
+	//std::cout << dummyPlaneWidget->GetOrigin()[0] << " " << dummyPlaneWidget->GetOrigin()[1] << " " << dummyPlaneWidget->GetOrigin()[2];
+
+	dummyPlaneWidget->SetPlaneOrientationToYAxes();
+	minX = dummyPlaneWidget->GetPoint1()[0];
+	maxX = dummyPlaneWidget->GetPoint2()[0];
+	//std::cout << dummyPlaneWidget->GetOrigin()[0] << " " << dummyPlaneWidget->GetOrigin()[1] << " " << dummyPlaneWidget->GetOrigin()[2];
+
+	vtkSmartPointer<vtkImagePlaneWidget> widget = addPlane(); //X plane
+	widget->SetPlaneOrientationToXAxes();
+	style->setActivePlaneWidged(widget, 0, sliceCount[0]);
+	widget->SetSliceIndex(sliceCount[0] / 2);
+	planes[CoronalIndex] = widget;
+
+	widget = addPlane(); //Y plane
+	widget->SetPlaneOrientationToYAxes();
+	widget->SetSliceIndex(sliceCount[1] / 2);
+	planes[SagitalIndex] = widget;
+
+	widget = addPlane(); //Z plane
+	widget->SetPlaneOrientationToZAxes();
+	widget->SetSliceIndex(sliceCount[2] / 2);
+	planes[AxialIndex] = widget;
+
 }
 
 void CTViewer::slotOpenDicom()
@@ -163,13 +206,64 @@ void CTViewer::slotOpenDicom()
 
 	//if (fileDialog.exec())
 	//{
-		QString firstPath("E:/Egyetem/workspace/dicomExamples/examples/sample_data/DICOM/digest_article");// = fileDialog.selectedFiles()[0];
-		_lastOpenedPath = firstPath;
-		loadDicom(firstPath);
+	QString firstPath("E:/Egyetem/workspace/dicomExamples/examples/sample_data/DICOM/digest_article");// = fileDialog.selectedFiles()[0];
+	_lastOpenedPath = firstPath;
+	loadDicom(firstPath);
 	//}
 }
 
 void CTViewer::slotExit()
 {
 	qApp->exit();
+}
+
+void CTViewer::slotShowHidePlane()
+{
+
+	if (this->ui->showSagital->isChecked())
+	{
+		planes[SagitalIndex]->On();
+	}
+	else
+	{
+		planes[SagitalIndex]->Off();
+	}
+
+	if (this->ui->showCoronal->isChecked())
+	{
+		planes[CoronalIndex]->On();
+	}
+	else
+	{
+		planes[CoronalIndex]->Off();
+	}
+
+	if (this->ui->showTransvers->isChecked())
+	{
+		planes[AxialIndex]->On();
+	}
+	else
+	{
+		planes[AxialIndex]->Off();
+	}
+}
+
+void CTViewer::slotActivatePlane()
+{
+
+	if (this->ui->btnSagittalActive->isChecked())
+	{
+		style->setActivePlaneWidged(planes[SagitalIndex], 0, 1000);
+	}
+
+	if (this->ui->btnCoronalActive->isChecked())
+	{
+		style->setActivePlaneWidged(planes[CoronalIndex], 0, 1000);
+	}
+
+	if (this->ui->btnAxialActive->isChecked())
+	{
+		style->setActivePlaneWidged(planes[AxialIndex], 0, 1000);
+	}
+
 }
