@@ -12,6 +12,7 @@
 #include <QFileDialog>
 #include <QStandardPaths>
 #include <qevent.h>
+#include <qmessagebox.h>
 
 //VTK includes
 #include "vtkOutlineFilter.h"
@@ -41,15 +42,19 @@ style(SliceInteractorStyle::New())
 	picker->SetTolerance(0.005);
 
 	connect(this->ui->pbOpenDicom, SIGNAL(clicked()), this, SLOT(slotOpenDicom()));
+	connect(this->ui->btnRefreshCustom, SIGNAL(clicked()), this, SLOT(slotRefreshCustom()));
+
 	connect(this->ui->actionExit, SIGNAL(triggered()), this, SLOT(slotExit()));
 
 	connect(this->ui->btnAxialActive, SIGNAL(toggled(bool)), this, SLOT(slotActivatePlane()));
 	connect(this->ui->btnCoronalActive, SIGNAL(toggled(bool)), this, SLOT(slotActivatePlane()));
 	connect(this->ui->btnSagittalActive, SIGNAL(toggled(bool)), this, SLOT(slotActivatePlane()));
+	connect(this->ui->btnCustomActive, SIGNAL(toggled(bool)), this, SLOT(slotActivatePlane()));
 
-	connect(this->ui->showTransvers, SIGNAL(stateChanged(int)), this, SLOT(slotShowHidePlane()));
+	connect(this->ui->showAxial, SIGNAL(stateChanged(int)), this, SLOT(slotShowHidePlane()));
 	connect(this->ui->showCoronal, SIGNAL(stateChanged(int)), this, SLOT(slotShowHidePlane()));
 	connect(this->ui->showSagital, SIGNAL(stateChanged(int)), this, SLOT(slotShowHidePlane()));
+	connect(this->ui->showCustom, SIGNAL(stateChanged(int)), this, SLOT(slotShowHidePlane()));
 
 }
 
@@ -79,11 +84,7 @@ void CTViewer::loadDicom(QString const &filePath)
 
 	iren->SetRenderWindow(renderWindow);
 
-
 	addDefaultPlanesAndInit();
-
-	//addPlane();
-	//addPlane();
 
 	renderer->AddActor(actor);
 
@@ -100,30 +101,28 @@ void CTViewer::loadDicom(QString const &filePath)
 	vtkSmartPointer<vtkCubeAxesActor2D> axes = vtkCubeAxesActor2D::New();
 	axes->SetInputData(outline->GetOutput());
 	axes->SetCamera(renderer->GetActiveCamera());
-	//    axes-> SetLabelFormat "%6.4g" 
-	//    axes-> SetFlyModeToOuterEdges(); 
 	axes->SetFontFactor(0.8);
 	axes->SetAxisTitleTextProperty(tprop);
 	axes->SetAxisLabelTextProperty(tprop);
-	//	axes->GetProperty()->SetDiffuseColor(1, 0, 0.25); 
 	axes->SetFontFactor(6);
 
 	renderer->AddActor(axes);
 
-	//  ren1->SetViewport(0,0,0.58333,1); 
 	renderer->GetActiveCamera()->Azimuth(45);
 	renderer->GetActiveCamera()->Dolly(1.0);
 	renderer->ResetCameraClippingRange();
 	renderer->ResetCamera();
-	// Set the actors' postions 
-	// 
-	renderWindow->Render();
 
+	renderWindow->Render();
 
 	iren->SetInteractorStyle(style);
 
+	imageLoaded = true;
+
 	iren->Initialize();
 	iren->Start();
+	imageLoaded = true;
+
 	renderWindow->Render();
 }
 
@@ -137,13 +136,6 @@ vtkSmartPointer<vtkImagePlaneWidget> CTViewer::addPlane()
 	planeWidget->TextureInterpolateOn();
 	planeWidget->SetResliceInterpolateToLinear();
 	planeWidget->SetInputData(reader->GetOutput());
-	//planeWidget->SetPlaneOrientationToZAxes();
-	//planeWidget->SetOrigin(oX, oY, oZ);
-	//planeWidget->SetPoint1(p1X, p1Y, p1Z);
-	//planeWidget->SetPoint2(p2X, p2Y, p2Z);
-	//std::cout << planeWidget->GetPoint1()[0] << " " << planeWidget->GetPoint1()[1] << " " << planeWidget->GetPoint1()[2] << std::endl;
-	//std::cout << planeWidget->GetPoint2()[0] << " " << planeWidget->GetPoint2()[1] << " " << planeWidget->GetPoint2()[2] << std::endl;
-
 	planeWidget->DisplayTextOn();
 	planeWidget->On();
 	return planeWidget;
@@ -166,29 +158,83 @@ void CTViewer::addDefaultPlanesAndInit()
 	maxY = dummyPlaneWidget->GetPoint1()[1];
 	minY = dummyPlaneWidget->GetPoint2()[1];
 	maxZ = dummyPlaneWidget->GetPoint2()[2];
-	//std::cout << dummyPlaneWidget->GetOrigin()[0] << " " << dummyPlaneWidget->GetOrigin()[1] << " " << dummyPlaneWidget->GetOrigin()[2];
+
 
 	dummyPlaneWidget->SetPlaneOrientationToYAxes();
 	minX = dummyPlaneWidget->GetPoint1()[0];
 	maxX = dummyPlaneWidget->GetPoint2()[0];
-	//std::cout << dummyPlaneWidget->GetOrigin()[0] << " " << dummyPlaneWidget->GetOrigin()[1] << " " << dummyPlaneWidget->GetOrigin()[2];
 
 	vtkSmartPointer<vtkImagePlaneWidget> widget = addPlane(); //X plane
 	widget->SetPlaneOrientationToXAxes();
-	style->setActivePlaneWidged(widget, 0, sliceCount[0]);
+	style->setActivePlaneWidged(widget, 0, sliceCount[0], false);
 	widget->SetSliceIndex(sliceCount[0] / 2);
 	planes[CoronalIndex] = widget;
 
 	widget = addPlane(); //Y plane
 	widget->SetPlaneOrientationToYAxes();
 	widget->SetSliceIndex(sliceCount[1] / 2);
+	std::cout << dummyPlaneWidget->GetNormal()[0] << " " << dummyPlaneWidget->GetNormal()[1] << " " << dummyPlaneWidget->GetNormal()[2] << std::endl;
 	planes[SagitalIndex] = widget;
 
 	widget = addPlane(); //Z plane
 	widget->SetPlaneOrientationToZAxes();
 	widget->SetSliceIndex(sliceCount[2] / 2);
+	std::cout << dummyPlaneWidget->GetNormal()[0] << " " << dummyPlaneWidget->GetNormal()[1] << " " << dummyPlaneWidget->GetNormal()[2] << std::endl;
 	planes[AxialIndex] = widget;
 
+	planes[CustomIndex] = NULL;
+	resetCustomCoords();
+
+}
+
+bool CTViewer::withinZeroAndMax(double *coords)
+{
+	if (coords[0] < 0.0 || coords[0] > maxX)
+		return false;
+	if (coords[1] < 0.0 || coords[1] > maxY)
+		return false;
+	if (coords[2] < 0.0 || coords[2] > maxZ)
+		return false;
+	return true;
+}
+
+void CTViewer::resetCustomCoords()
+{
+	if (planes[CustomIndex] == NULL)
+	{
+		this->ui->tbOx->setText("");
+		this->ui->tbOy->setText("");
+		this->ui->tbOz->setText("");
+
+		this->ui->tbP1x->setText("");
+		this->ui->tbP1y->setText("");
+		this->ui->tbP1z->setText("");
+
+		this->ui->tbP2x->setText("");
+		this->ui->tbP2y->setText("");
+		this->ui->tbP2z->setText("");
+
+	}
+	else
+	{
+		double origin[3], p1[3], p2[3];
+
+		planes[CustomIndex]->GetOrigin(origin);
+		planes[CustomIndex]->GetPoint1(p1);
+		planes[CustomIndex]->GetPoint2(p2);
+
+		this->ui->tbOx->setText(std::to_string(origin[0]).c_str());
+		this->ui->tbOy->setText(std::to_string(origin[1]).c_str());
+		this->ui->tbOz->setText(std::to_string(origin[2]).c_str());
+
+		this->ui->tbP1x->setText(std::to_string(p1[0]).c_str());
+		this->ui->tbP1y->setText(std::to_string(p1[1]).c_str());
+		this->ui->tbP1z->setText(std::to_string(p1[2]).c_str());
+
+		this->ui->tbP2x->setText(std::to_string(p2[0]).c_str());
+		this->ui->tbP2y->setText(std::to_string(p2[1]).c_str());
+		this->ui->tbP2z->setText(std::to_string(p2[2]).c_str());
+	}
 }
 
 void CTViewer::slotOpenDicom()
@@ -219,7 +265,11 @@ void CTViewer::slotExit()
 
 void CTViewer::slotShowHidePlane()
 {
-
+	if (!imageLoaded)
+	{
+		QMessageBox::information(this, "Error", "Please load an image first!");
+		return;
+	}
 	if (this->ui->showSagital->isChecked())
 	{
 		planes[SagitalIndex]->On();
@@ -238,7 +288,7 @@ void CTViewer::slotShowHidePlane()
 		planes[CoronalIndex]->Off();
 	}
 
-	if (this->ui->showTransvers->isChecked())
+	if (this->ui->showAxial->isChecked())
 	{
 		planes[AxialIndex]->On();
 	}
@@ -246,11 +296,27 @@ void CTViewer::slotShowHidePlane()
 	{
 		planes[AxialIndex]->Off();
 	}
+
+	if (planes[CustomIndex] != NULL)
+	{
+		if (this->ui->showCustom->isChecked())
+		{
+			planes[CustomIndex]->On();
+		}
+		else
+		{
+			planes[CustomIndex]->Off();
+		}
+	}
 }
 
 void CTViewer::slotActivatePlane()
 {
-
+	if (!imageLoaded)
+	{
+		QMessageBox::information(this, "Error", "Please load an image first!");
+		return;
+	}
 	if (this->ui->btnSagittalActive->isChecked())
 	{
 		style->setActivePlaneWidged(planes[SagitalIndex], 0, 1000);
@@ -264,6 +330,107 @@ void CTViewer::slotActivatePlane()
 	if (this->ui->btnAxialActive->isChecked())
 	{
 		style->setActivePlaneWidged(planes[AxialIndex], 0, 1000);
+	}
+
+	if (this->ui->btnCustomActive->isChecked() && planes[CustomIndex] != NULL)
+	{
+		style->setActivePlaneWidged(planes[CustomIndex], 0, 1000);
+	}
+}
+
+void CTViewer::slotRefreshCustom()
+{
+
+	if (!imageLoaded)
+	{
+		QMessageBox::information(this, "Error", "Please load an image first!");
+		return;
+	}
+
+	double origin[3], p1[3], p2[3];
+	bool ok;
+	std::string errorMessage = "";
+
+	origin[0] = this->ui->tbOx->text().toDouble(&ok);
+	if (!ok)
+	{
+		errorMessage += "Origin X coord. is not a double!\n";
+	}
+	origin[1] = this->ui->tbOy->text().toDouble(&ok);
+	if (!ok)
+	{
+		errorMessage += "Origin Y coord. is not a double!\n";
+	}
+	origin[2] = this->ui->tbOz->text().toDouble(&ok);
+	if (!ok)
+	{
+		errorMessage += "Origin Z coord. is not a double!\n";
+	}
+
+	p1[0] = this->ui->tbP1x->text().toDouble(&ok);
+	if (!ok)
+	{
+		errorMessage += "P1 X coord. is not a double!\n";
+	}
+	p1[1] = this->ui->tbP1y->text().toDouble(&ok);
+	if (!ok)
+	{
+		errorMessage += "P1 Y coord. is not a double!\n";
+	}
+	p1[2] = this->ui->tbP1z->text().toDouble(&ok);
+	if (!ok)
+	{
+		errorMessage += "P1 Z coord. is not a double!\n";
+	}
+
+	p2[0] = this->ui->tbP2x->text().toDouble(&ok);
+	if (!ok)
+	{
+		errorMessage += "P2 X coord. is not a double!\n";
+	}
+	p2[1] = this->ui->tbP2y->text().toDouble(&ok);
+	if (!ok)
+	{
+		errorMessage += "P2 Y coord. is not a double!\n";
+	}
+	p2[2] = this->ui->tbP2z->text().toDouble(&ok);
+	if (!ok)
+	{
+		errorMessage += "P2 Z coord. is not a double!\n";
+	}
+
+	if (errorMessage == "")
+	{
+		if (!withinZeroAndMax(origin))
+		{
+			errorMessage += "Origin coords not within image bounds!\n";
+		}
+		if (!withinZeroAndMax(p1))
+		{
+			errorMessage += "P1 coords not within image bounds!\n";
+		}
+		if (!withinZeroAndMax(p2))
+		{
+			errorMessage += "P2 coords not within image bounds!\n";
+		}
+	}
+	if (errorMessage != "")
+	{
+		QMessageBox::information(this, "Conversion Error", errorMessage.c_str());
+		return;
+	}
+
+	if (planes[CustomIndex] == NULL)
+	{
+		vtkSmartPointer<vtkImagePlaneWidget> widget = addPlane();
+		widget->SetOrigin(origin);
+		widget->SetPoint1(p1);
+		widget->SetPoint2(p2);
+		widget->UpdatePlacement();
+		planes[CustomIndex] = widget;
+
+		renderer->Render();
+
 	}
 
 }

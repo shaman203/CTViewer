@@ -10,7 +10,7 @@ public:
 	static SliceInteractorStyle* New();
 	vtkTypeMacro(SliceInteractorStyle, vtkInteractorStyleTrackballCamera);
 	void setRenderer(vtkSmartPointer<vtkRenderWindow> renderer);
-	void setActivePlaneWidged(vtkSmartPointer<vtkImagePlaneWidget> planeWidget, int minSlice, int maxSlice);
+	void setActivePlaneWidged(vtkSmartPointer<vtkImagePlaneWidget> planeWidget, int minSlice, int maxSlice, bool useMoveSlice = true);
 
 protected:
 
@@ -18,12 +18,15 @@ protected:
 	vtkSmartPointer<vtkRenderWindow> renderer = NULL;
 	int minSlice;
 	int maxSlice;
+	bool useMoveSlice = true;
 
 	SliceInteractorStyle(){};
 	~SliceInteractorStyle(){};
 
 	void MoveSliceForward();
 	void MoveSliceBackward();
+
+	void getNormalVector(vtkSmartPointer<vtkImagePlaneWidget> activePlaneWidget, double* dX, double* dY, double* dZ);
 
 	virtual void OnKeyDown();
 

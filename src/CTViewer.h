@@ -37,7 +37,8 @@ protected:
 	{
 		SagitalIndex = 1,
 		CoronalIndex = 2,
-		AxialIndex = 3
+		AxialIndex = 3,
+		CustomIndex = 4
 	};
 
 private slots:
@@ -49,6 +50,8 @@ private slots:
   void slotShowHidePlane();
 
   void slotActivatePlane();
+
+  void slotRefreshCustom();
 
 private:
  
@@ -70,10 +73,14 @@ private:
 
   std::map<Axe, vtkSmartPointer<vtkImagePlaneWidget>> planes;
   double minX, maxX, minY, maxY, minZ, maxZ;
+  
+  bool imageLoaded = false;
 
   void loadDicom(QString const &dirPath);
   vtkSmartPointer<vtkImagePlaneWidget> addPlane();
   void addDefaultPlanesAndInit();
+  void resetCustomCoords();
+  bool withinZeroAndMax(double *coords);
 };
  
 
