@@ -63,6 +63,7 @@ style(SliceInteractorStyle::New())
 
 void CTViewer::loadDicom(QString const &filePath)
 {
+	this->ui->tbrowseLog->clear();
 
 	reader->SetDirectoryName(filePath.toStdString().c_str());
 	reader->Update();
@@ -118,12 +119,19 @@ void CTViewer::loadDicom(QString const &filePath)
 	iren->SetInteractorStyle(style);
 
 	imageLoaded = true;
-
-	iren->Initialize();
-	iren->Start();
 	imageLoaded = true;
 
+	this->ui->tbrowseLog->append("Load succesful\n");
+
+	this->ui->tbrowseLog->append("Max X: " + QString::number(maxX, 'f', 2) + "\n");
+	this->ui->tbrowseLog->append("Max Y: " + QString::number(maxY, 'f', 2) + "\n");
+	this->ui->tbrowseLog->append("Max Z: " + QString::number(maxZ, 'f', 2) + "\n");
+	
+	iren->Initialize();
+	iren->Start();
 	renderWindow->Render();
+
+	
 }
 
 vtkSmartPointer<vtkImagePlaneWidget> CTViewer::addPlane()
@@ -173,13 +181,11 @@ void CTViewer::addDefaultPlanesAndInit()
 	widget = addPlane(); //Y plane
 	widget->SetPlaneOrientationToYAxes();
 	widget->SetSliceIndex(sliceCount[1] / 2);
-	std::cout << dummyPlaneWidget->GetNormal()[0] << " " << dummyPlaneWidget->GetNormal()[1] << " " << dummyPlaneWidget->GetNormal()[2] << std::endl;
 	planes[SagitalIndex] = widget;
 
 	widget = addPlane(); //Z plane
 	widget->SetPlaneOrientationToZAxes();
 	widget->SetSliceIndex(sliceCount[2] / 2);
-	std::cout << dummyPlaneWidget->GetNormal()[0] << " " << dummyPlaneWidget->GetNormal()[1] << " " << dummyPlaneWidget->GetNormal()[2] << std::endl;
 	planes[AxialIndex] = widget;
 
 	planes[CustomIndex] = NULL;
@@ -334,7 +340,7 @@ void CTViewer::slotActivatePlane()
 
 	if (this->ui->btnCustomActive->isChecked() && planes[CustomIndex] != NULL)
 	{
-		style->setActivePlaneWidged(planes[CustomIndex], 0, 1000);
+		style->setActivePlaneWidged(planes[CustomIndex], 0, 1000, false);
 	}
 }
 
