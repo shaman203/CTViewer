@@ -256,12 +256,12 @@ void CTViewer::slotOpenDicom()
 	fileDialog.setDirectory(_lastOpenedPath);
 	fileDialog.setHistory(folders);
 
-	//if (fileDialog.exec())
-	//{
-	QString firstPath("E:/Egyetem/workspace/dicomExamples/examples/sample_data/DICOM/digest_article");// = fileDialog.selectedFiles()[0];
+	if (fileDialog.exec())
+	{
+	QString firstPath = fileDialog.selectedFiles()[0];
 	_lastOpenedPath = firstPath;
 	loadDicom(firstPath);
-	//}
+	}
 }
 
 void CTViewer::slotExit()
@@ -434,9 +434,13 @@ void CTViewer::slotRefreshCustom()
 		widget->SetPoint2(p2);
 		widget->UpdatePlacement();
 		planes[CustomIndex] = widget;
-
-		renderer->Render();
-
+	}
+	else
+	{
+		planes[CustomIndex]->SetOrigin(origin);
+		planes[CustomIndex]->SetPoint1(p1);
+		planes[CustomIndex]->SetPoint2(p2);
+		planes[CustomIndex]->UpdatePlacement();
 	}
 
 }
